@@ -10,6 +10,7 @@ El robot cuenta con piezas diseñadas e impresas en 3D y un sistema de control p
 
 ## Diagrama del sistema / Arquitectura
 ![flowchart](https://github.com/user-attachments/assets/e103e13a-6287-45d0-bd8c-125f516b93af)
+![172cc056-5a7b-4607-a823-49468f11fc29](https://github.com/user-attachments/assets/ce01f0dc-eb40-48f0-83bc-44ac319b39b0) 
 
 ## Tecnologías utilizadas
 
