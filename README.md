@@ -7,7 +7,7 @@ El objetivo principal es lograr estabilidad, locomoción básica y control efici
 mediante programación en sistemas embebidos.
 El robot cuenta con piezas diseñadas e impresas en 3D y un sistema de control programado en C/C++.
 
-##Objetivos
+## Objetivos
 Diseñar e implementar un robot bípedo de seis grados de libertad, controlado mediante
 un sistema embebido basado en ESP32 y FreeRTOS, incorporando modelado cinemático, con fines académicos y experimentales 
 para la implementacion de robotica dinamica.
