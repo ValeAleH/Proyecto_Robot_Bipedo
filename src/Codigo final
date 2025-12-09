@@ -1,0 +1,232 @@
+#include <Wire.h>
+#include <Adafruit_PWMServoDriver.h>
+
+// ======================================================
+//  PCA9685
+// ======================================================
+Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
+
+// Servos: canales asignados
+#define CD 0   // Cadera Derecha
+#define RD 1   // Rodilla Derecha
+#define TD 2   // Tobillo Derecho
+#define CI 3   // Cadera Izquierda
+#define RI 4   // Rodilla Izquierda
+#define TI 5   // Tobillo Izquierdo
+
+// Pulso correspondiente a 0° y 180° (MG996R)
+int servoMin = 150;   // ~500us
+int servoMax = 600;   // ~2500us
+
+// Posición inicial (descanso)
+int current[6] = {122, 180, 140, 58, 0, 40};
+
+// Restricciones tobillos
+int tobilloIzqMin = 40;
+int tobilloDerMax = 140;
+
+// Restricciones caderas
+int caderaMin = 40;
+int caderaMax = 140;
+
+// Movimiento lento
+const int stepSize = 1;
+const int stepDelayMs = 80;
+
+// ======================================================
+//  MPU9250 - lectura acelerómetro I2C directa
+// ======================================================
+#define MPU_ADDR 0x68
+#define PWR_MGMT_1 0x6B
+#define ACCEL_XOUT_H 0x3B
+#define ACCEL_CONFIG 0x1C
+
+float ax, ay, az;
+
+// Control de balanceo
+float K = 1.4;       // ganancia
+float filtro = 0.06; // suavizado
+bool estabilizar = false;
+
+// ======================================================
+//  Utilidades MPU
+// ======================================================
+void mpuWrite(uint8_t reg, uint8_t val){
+  Wire.beginTransmission(MPU_ADDR);
+  Wire.write(reg);
+  Wire.write(val);
+  Wire.endTransmission();
+}
+
+bool mpuRead(uint8_t reg, uint8_t count, uint8_t *dest){
+  Wire.beginTransmission(MPU_ADDR);
+  Wire.write(reg);
+  if (Wire.endTransmission(false) != 0) return false;
+
+  Wire.requestFrom(MPU_ADDR, count);
+  unsigned long t0 = millis();
+  while (Wire.available() < count){
+    if (millis() - t0 > 50) return false;
+  }
+  for (int i = 0; i < count; i++) dest[i] = Wire.read();
+  return true;
+}
+
+bool readAccel(){
+  uint8_t buf[6];
+  if (!mpuRead(ACCEL_XOUT_H, 6, buf)) return false;
+
+  int16_t rx = (buf[0]<<8)|buf[1];
+  int16_t ry = (buf[2]<<8)|buf[3];
+  int16_t rz = (buf[4]<<8)|buf[5];
+
+  ax = rx / 16384.0f;
+  ay = ry / 16384.0f;
+  az = rz / 16384.0f;
+
+  return true;
+}
+
+float getRoll(){
+  // sensor boca arriba, eje X adelante → roll = atan2(ay, az)
+  return atan2(ay, az) * 57.29577951f;
+}
+
+// ======================================================
+//  Control servos PCA9685
+// ======================================================
+void writeServo(int canal, int angulo){
+  angulo = constrain(angulo, 0, 180);
+  int pulse = map(angulo, 0, 180, servoMin, servoMax);
+  pwm.setPWM(canal, 0, pulse);
+}
+
+// ======================================================
+//  Movimiento suave inicial
+// ======================================================
+void calculateTargets(int tgt[]){
+  tgt[CD] = current[CD];
+  tgt[CI] = current[CI];
+
+  const int dRod = 25;
+  const int dTob = 25;
+
+  tgt[RI] = current[RI] + dRod;
+  tgt[TI] = current[TI] + dTob;
+  if (tgt[TI] < tobilloIzqMin) tgt[TI] = tobilloIzqMin;
+
+  tgt[RD] = current[RD] - dRod;
+  tgt[TD] = current[TD] - dTob;
+  if (tgt[TD] > tobilloDerMax) tgt[TD] = tobilloDerMax;
+
+  for (int i = 0; i < 6; i++) tgt[i] = constrain(tgt[i], 0, 180);
+}
+
+void smoothMove(int tgt[]){
+  int maxDelta = 0;
+  for (int i = 0; i < 6; i++)
+    maxDelta = max(maxDelta, abs(tgt[i] - current[i]));
+
+  int steps = max(1, maxDelta / stepSize);
+
+  for (int s = 1; s <= steps; s++){
+    for (int i = 0; i < 6; i++){
+      int v = current[i] + (tgt[i] - current[i]) * s / steps;
+      writeServo(i, v);
+    }
+    delay(stepDelayMs);
+  }
+
+  for (int i = 0; i < 6; i++){
+    writeServo(i, tgt[i]);
+    current[i] = tgt[i];
+  }
+}
+
+// ======================================================
+//  Tarea de estabilización
+// ======================================================
+void tareaBalanceo(void *param){
+  float suavD = current[CD];
+  float suavI = current[CI];
+
+  while(true){
+
+    if (estabilizar && readAccel()){
+      float roll = getRoll();
+
+      float corrD = roll * K;
+      float corrI = -roll * K;
+
+      float targetD = current[CD] + corrD;
+      float targetI = current[CI] + corrI;
+
+      targetD = constrain(targetD, caderaMin, caderaMax);
+      targetI = constrain(targetI, caderaMin, caderaMax);
+
+      suavD = suavD + filtro * (targetD - suavD);
+      suavI = suavI + filtro * (targetI - suavI);
+
+      writeServo(CD, (int)suavD);
+      writeServo(CI, (int)suavI);
+
+      Serial.print("roll=");
+      Serial.print(roll);
+      Serial.print(" | CD=");
+      Serial.print((int)suavD);
+      Serial.print(" | CI=");
+      Serial.println((int)suavI);
+    }
+
+    vTaskDelay(pdMS_TO_TICKS(20)); // 50Hz
+  }
+}
+
+// ======================================================
+//  SETUP
+// ======================================================
+void setup(){
+  Serial.begin(115200);
+  Wire.begin();
+
+  // MPU init
+  Serial.println("Inicializando MPU...");
+  mpuWrite(PWR_MGMT_1, 0x00);
+  delay(100);
+  mpuWrite(ACCEL_CONFIG, 0x00);
+  delay(20);
+
+  // PCA9685 init
+  pwm.begin();
+  pwm.setPWMFreq(50);
+  delay(20);
+
+  // posición inicial
+  for (int i = 0; i < 6; i++){
+    writeServo(i, current[i]);
+    delay(20);
+  }
+
+  delay(700);
+
+  // movimiento erguido
+  int tgt[6];
+  calculateTargets(tgt);
+  smoothMove(tgt);
+
+  estabilizar = true;
+
+  xTaskCreatePinnedToCore(
+    tareaBalanceo,
+    "balanceo",
+    4096,
+    NULL,
+    1,
+    NULL,
+    1
+  );
+}
+
+void loop(){
+  vTaskDelay(pdMS_TO_TICKS(1000));
+}
