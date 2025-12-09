@@ -14,27 +14,27 @@ para la implementacion de robotica dinamica.
 
 
 ## Diagrama del sistema / Arquitectura
-##Diagrama de Estados
+## Diagrama de Estados
 ![c72de5f9-b10e-4230-a639-70ab263a1b59](https://github.com/user-attachments/assets/be1a9a4e-76ec-4142-9d24-2a8d2239e7ae)
 
-##Diagrama 3D
+## Diagrama 3D
 ![172cc056-5a7b-4607-a823-49468f11fc29](https://github.com/user-attachments/assets/ce01f0dc-eb40-48f0-83bc-44ac319b39b0) 
 
 ## Tecnologías utilizadas
-###Hadware
+### Hadware
 - Microcontrolador: ESP32
 - Sensor de movimiento: MPU9250
 - PCA9685
 - Jumpers
 - Protoboard
-###Software
+### Software
 - Lenguaje de programación: C / C++
 - Diseño mecánico: Solidwords
 - Control: Lógica embebida y lectura de sensores
 - Entorno de desarrollo: Arduino IDE / VS Code
 - Control de versiones: Git y GitHub
 
-##Tareas del Sistema (FreeRTOS)
+### Tareas necesarias
 
 El robot bípedo utiliza un conjunto de tareas concurrentes implementadas en FreeRTOS, permitiendo ejecutar funciones críticas en tiempo real y garantizando estabilidad durante la marcha. Cada tarea tiene un propósito específico, una prioridad definida y un periodo de ejecución acorde a su importancia dentro del sistema embebido.
 
@@ -70,8 +70,10 @@ Estado ERGUIDO (Stand-Up):
 - Gestiona el cambio de estados mediante una cola o un evento enviado desde Bluetooth u otra interfaz.
 - Prioridad media-alta, ya que afecta directamente la estabilidad inicial del robot.
 
-##Esquema de conexión
-   
+## Esquema de conexión
+<img width="613" height="368" alt="Captura de pantalla 2025-12-09 100521" src="https://github.com/user-attachments/assets/5a9d2384-039c-460f-a5b7-774b3faed6af" />
+<img width="392" height="232" alt="Captura de pantalla 2025-12-09 100414" src="https://github.com/user-attachments/assets/3e9115f2-caf2-41db-bb35-f1f4922ba470" />
+
 
 ## Integrantes del equipo y roles
 - Valeria Alejandra Hoyos Tovar – Programación y control del sistema
