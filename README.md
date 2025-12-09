@@ -27,6 +27,7 @@ para la implementacion de robotica dinamica.
 - PCA9685
 - Jumpers
 - Protoboard
+- Servos MG995-MG996
 ### Software
 - Lenguaje de programación: C / C++
 - Diseño mecánico: Solidwords
